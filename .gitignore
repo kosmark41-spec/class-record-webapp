@@ -1,0 +1,16 @@
+node_modules/
+npm-debug.log*
+
+.env
+.env.*
+!.env.example
+
+data/class-record.json
+data/*.local.json
+
+.gh-config/
+AppData/
+gh-login-status.txt
+
+.DS_Store
+Thumbs.db
