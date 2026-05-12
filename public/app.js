@@ -319,6 +319,58 @@ function computeGrade(quiz, exam, assignmentScore = null) {
   return scores.reduce((sum, value) => sum + value, 0) / scores.length;
 }
 
+function transmuteGrade(initialGrade) {
+  const numericGrade = Number(initialGrade);
+  if (!Number.isFinite(numericGrade)) return 60;
+
+  const roundedGrade = Math.min(100, Math.max(0, Number(numericGrade.toFixed(2))));
+  const gradeTable = [
+    [99.5, 100],
+    [97.5, 99],
+    [96, 98],
+    [95, 97],
+    [94, 96],
+    [93, 95],
+    [92, 94],
+    [91, 93],
+    [90, 92],
+    [89, 91],
+    [88, 90],
+    [87, 89],
+    [86, 88],
+    [85, 87],
+    [84, 86],
+    [83, 85],
+    [82, 84],
+    [81, 83],
+    [80, 82],
+    [79, 81],
+    [78, 80],
+    [77, 79],
+    [76, 78],
+    [75, 77],
+    [73, 76],
+    [70, 75],
+    [68, 74],
+    [66, 73],
+    [64, 72],
+    [62, 71],
+    [60, 70],
+    [58, 69],
+    [56, 68],
+    [54, 67],
+    [52, 66],
+    [50, 65],
+    [48, 64],
+    [46, 63],
+    [43, 62],
+    [40, 61]
+  ];
+
+  const match = gradeTable.find(([minimumGrade]) => roundedGrade >= minimumGrade);
+  return match ? match[1] : 60;
+}
+
 function average(values) {
   if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -326,6 +378,70 @@ function average(values) {
 
 function getRemarks(grade) {
   return grade >= PASSING_GRADE ? "Passed" : "Needs Improvement";
+}
+
+function getGradeDescriptor(grade) {
+  if (grade === "" || grade === null || grade === undefined) {
+    return {
+      letter: "",
+      label: "Pending",
+      localLabel: "",
+      text: "Pending"
+    };
+  }
+
+  const numericGrade = Number(grade);
+  if (!Number.isFinite(numericGrade)) {
+    return {
+      letter: "",
+      label: "Pending",
+      localLabel: "",
+      text: "Pending"
+    };
+  }
+
+  if (numericGrade >= 90) {
+    return {
+      letter: "A",
+      label: "Advancing",
+      localLabel: "Namumukod-tangi",
+      text: "A - Advancing"
+    };
+  }
+
+  if (numericGrade >= 80) {
+    return {
+      letter: "B",
+      label: "Benchmarking",
+      localLabel: "Napamamalas",
+      text: "B - Benchmarking"
+    };
+  }
+
+  if (numericGrade >= 75) {
+    return {
+      letter: "C",
+      label: "Connecting",
+      localLabel: "Natututo",
+      text: "C - Connecting"
+    };
+  }
+
+  if (numericGrade >= 65) {
+    return {
+      letter: "D",
+      label: "Developing",
+      localLabel: "Napaunlad",
+      text: "D - Developing"
+    };
+  }
+
+  return {
+    letter: "E",
+    label: "Emerging",
+    localLabel: "Nasisimula",
+    text: "E - Emerging"
+  };
 }
 
 function buildTeacherQuarterlyGradeSummary(student, subjects, gradeLookup) {
@@ -346,6 +462,8 @@ function buildTeacherQuarterlyGradeSummary(student, subjects, gradeLookup) {
   const quarterlyAverage = subjectCount > 0 && gradedSubjectCount === subjectCount
     ? Number(average(subjectAverages).toFixed(2))
     : null;
+  const transmutedQuarterlyGrade = quarterlyAverage !== null ? transmuteGrade(quarterlyAverage) : null;
+  const descriptor = transmutedQuarterlyGrade !== null ? getGradeDescriptor(transmutedQuarterlyGrade) : getGradeDescriptor(null);
 
   let progressLabel = "No grades saved yet.";
   if (gradedSubjectCount && remainingSubjectCount) {
@@ -360,10 +478,12 @@ function buildTeacherQuarterlyGradeSummary(student, subjects, gradeLookup) {
     remainingSubjectCount,
     latestUpdatedAt,
     quarterlyAverage,
-    remarks: quarterlyAverage !== null ? getRemarks(quarterlyAverage) : "Pending",
+    transmutedQuarterlyGrade,
+    descriptor,
+    remarks: transmutedQuarterlyGrade !== null ? getRemarks(transmutedQuarterlyGrade) : "Pending",
     progressLabel,
     statusLabel: quarterlyAverage !== null
-      ? "Quarterly average is based on all saved subject grades."
+      ? "Quarterly average is based on all saved subject grades and the transmuted grade follows the grading table."
       : remainingSubjectCount
         ? `Waiting for ${remainingSubjectCount} more subject(s) before the quarterly grade is final.`
         : "No quarter subjects available yet."
@@ -1620,15 +1740,25 @@ function renderTeacherView() {
           <div class="teacher-quarterly-scroll">
           <div class="teacher-quarterly-grid">
             ${quarterlyStudentSummaries.map(({ student, summary }) => `
-              <article class="teacher-quarterly-student-card" data-quarterly-card data-search-text="${escapeHtml(`${student.name} ${student.id} ${activeQuarterLabel} ${summary.remarks} ${summary.progressLabel}`)}">
+              <article class="teacher-quarterly-student-card" data-quarterly-card data-search-text="${escapeHtml(`${student.name} ${student.id} ${activeQuarterLabel} ${summary.remarks} ${summary.progressLabel} ${summary.transmutedQuarterlyGrade ?? ""} ${summary.descriptor.text}`)}">
                 <div class="teacher-quarterly-card-head">
                   <div class="teacher-quarterly-student-copy">
                     <h4>${escapeHtml(student.name)}</h4>
                     <p class="muted teacher-quarterly-card-subtitle">${escapeHtml(summary.progressLabel)}</p>
                   </div>
-                  <div class="teacher-quarterly-score">
-                    <span>Average</span>
-                    <strong>${summary.quarterlyAverage !== null ? summary.quarterlyAverage.toFixed(2) : "--"}</strong>
+                  <div class="teacher-quarterly-score-grid">
+                    <div class="teacher-quarterly-score">
+                      <span>Raw Grade</span>
+                      <strong>${summary.quarterlyAverage !== null ? summary.quarterlyAverage.toFixed(2) : "--"}</strong>
+                    </div>
+                    <div class="teacher-quarterly-score">
+                      <span>Transmuted</span>
+                      <strong>${summary.transmutedQuarterlyGrade !== null ? summary.transmutedQuarterlyGrade : "--"}</strong>
+                    </div>
+                    <div class="teacher-quarterly-score">
+                      <span>Letter Grade</span>
+                      <strong>${summary.descriptor.letter || "--"}</strong>
+                    </div>
                   </div>
                 </div>
 
@@ -1648,9 +1778,10 @@ function renderTeacherView() {
                 </div>
 
                 <div class="teacher-quarterly-card-footer">
-                  ${summary.quarterlyAverage !== null
-                    ? `<span class="badge ${summary.quarterlyAverage >= PASSING_GRADE ? "good" : "warn"}">${escapeHtml(summary.remarks)}</span>`
+                  ${summary.transmutedQuarterlyGrade !== null
+                    ? `<span class="badge ${summary.transmutedQuarterlyGrade >= PASSING_GRADE ? "good" : "warn"}">${escapeHtml(summary.remarks)}</span>`
                     : `<span class="badge warn">Pending</span>`}
+                  <span class="quarter-grade-descriptor-badge">${escapeHtml(summary.descriptor.text)}</span>
                   <p class="muted">${escapeHtml(summary.remainingSubjectCount ? `${summary.remainingSubjectCount} subject(s) still missing.` : "All subjects graded.")}</p>
                 </div>
               </article>
@@ -1899,16 +2030,16 @@ function renderStudentView() {
   const groupedRecords = groupItemsByQuarter(sortQuarterItems(dashboard.records));
   const selectedPrintQuarter = normalizeStudentPrintQuarter(state.studentPrintQuarter);
   const selectedPrintLabel = getStudentPrintScopeLabel(selectedPrintQuarter);
+  const hasGradeRecords = dashboard.records.length > 0;
+  const overallTransmutedGrade = hasGradeRecords ? transmuteGrade(dashboard.metrics.overallAverage) : null;
+  const overallDescriptor = getGradeDescriptor(overallTransmutedGrade);
 
   renderShell(`
     <section class="grade-summary student-grade-summary">
-      <div class="grade-card"><small>Overall Average</small><strong>${dashboard.records.length ? dashboard.metrics.overallAverage.toFixed(2) : "--"}</strong></div>
-      <div class="grade-card"><small>Highest Grade</small><strong>${dashboard.records.length ? dashboard.metrics.highestGrade.toFixed(2) : "--"}</strong></div>
-      <div class="grade-card"><small>Lowest Grade</small><strong>${dashboard.records.length ? dashboard.metrics.lowestGrade.toFixed(2) : "--"}</strong></div>
-      <div class="grade-card"><small>Assignment Scores</small><strong>${dashboard.metrics.assignmentScoreCount}</strong></div>
+      <div class="grade-card"><small>Transmuted Grade</small><strong>${overallTransmutedGrade !== null ? overallTransmutedGrade : "--"}</strong></div>
+      <div class="grade-card"><small>Letter Grade</small><strong>${overallDescriptor.letter || "--"}</strong></div>
       <div class="grade-card"><small>Present</small><strong>${dashboard.metrics.presentCount}</strong></div>
       <div class="grade-card"><small>Absent</small><strong>${dashboard.metrics.absentCount}</strong></div>
-      <div class="grade-card"><small>Adviser</small><strong>${escapeHtml(dashboard.teacherName)}</strong></div>
     </section>
 
     <section class="card student-report-card student-print-main">
@@ -1916,7 +2047,7 @@ function renderStudentView() {
         <div>
           <small class="eyebrow">Printable Grade Report</small>
           <h3>My Quarterly Grades</h3>
-          <p class="muted">A quarter-by-quarter summary of your subjects, scores, and remarks for easier review and printing.</p>
+          <p class="muted">A quarter-by-quarter summary of your transmuted grades and letter grades for easier review and printing.</p>
         </div>
         <div class="student-report-meta">
           <div><span>Student</span><strong>${escapeHtml(state.currentUser.name)}</strong></div>
@@ -1943,48 +2074,38 @@ function renderStudentView() {
 
                 ${quarterRecords.length ? `
                   <div class="subject-report-list">
-                    ${quarterRecords.map((record) => `
-                      <article class="subject-report-card-item">
-                        <div class="subject-report-top">
-                          <div class="subject-report-heading">
-                            <small class="subject-report-label">Subject</small>
-                            <h4>${escapeHtml(record.subjectName)}</h4>
-                            <p class="muted">Teacher: ${escapeHtml(record.teacherName)}</p>
+                    ${quarterRecords.map((record) => {
+                      const transmutedGrade = transmuteGrade(record.average);
+                      const descriptor = getGradeDescriptor(transmutedGrade);
+                      return `
+                        <article class="subject-report-card-item student-grade-display-card">
+                          <div class="subject-report-top">
+                            <div class="subject-report-heading">
+                              <small class="subject-report-label">Subject</small>
+                              <h4>${escapeHtml(record.subjectName)}</h4>
+                              <p class="muted">Teacher: ${escapeHtml(record.teacherName)}</p>
+                            </div>
+                            <div class="student-grade-result-grid">
+                              <div class="subject-report-result">
+                                <small>Transmuted Grade</small>
+                                <strong>${transmutedGrade}</strong>
+                              </div>
+                              <div class="subject-report-result">
+                                <small>Letter Grade</small>
+                                <strong>${escapeHtml(descriptor.letter || "--")}</strong>
+                              </div>
+                            </div>
                           </div>
-                          <div class="subject-report-result">
-                            <small>Final Average</small>
-                            <strong>${record.average.toFixed(2)}</strong>
-                            <div class="badge ${record.average >= PASSING_GRADE ? "good" : "warn"}">${escapeHtml(record.remarks)}</div>
-                          </div>
-                        </div>
 
-                        <div class="subject-score-grid">
-                          <div class="subject-score-box">
-                            <span>Assignment</span>
-                            <strong>${formatScore(record.assignmentScore)}</strong>
+                          <div class="subject-report-footer">
+                            <div class="subject-report-notes">
+                              <div><span>Missed Assignments</span><strong>${Number.isInteger(record.missedAssignmentCount) ? record.missedAssignmentCount : 0}</strong></div>
+                              <div><span>Missed Quizzes</span><strong>${Number.isInteger(record.missedQuizCount) ? record.missedQuizCount : 0}</strong></div>
+                            </div>
                           </div>
-                          <div class="subject-score-box">
-                            <span>Quiz</span>
-                            <strong>${formatScore(record.quiz)}</strong>
-                          </div>
-                          <div class="subject-score-box">
-                            <span>Exam</span>
-                            <strong>${formatScore(record.exam)}</strong>
-                          </div>
-                        </div>
-
-                        <div class="subject-report-footer">
-                          <div class="subject-report-notes">
-                            <div><span>Missed Assignments</span><strong>${Number.isInteger(record.missedAssignmentCount) ? record.missedAssignmentCount : 0}</strong></div>
-                            <div><span>Missed Quizzes</span><strong>${Number.isInteger(record.missedQuizCount) ? record.missedQuizCount : 0}</strong></div>
-                          </div>
-                          <div class="subject-report-updated">
-                            <span>Last Updated</span>
-                            <strong>${escapeHtml(formatDate(record.updatedAt))}</strong>
-                          </div>
-                        </div>
-                      </article>
-                    `).join("")}
+                        </article>
+                      `;
+                    }).join("")}
                   </div>
                 ` : `
                   <div class="empty-state">No grades posted for ${escapeHtml(quarterLabel)} yet.</div>

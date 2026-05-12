@@ -2,6 +2,7 @@ services:
   - type: web
     name: class-record-webapp
     runtime: node
+    plan: starter
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /api/health

@@ -5,8 +5,14 @@ const { URL } = require("url");
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
-const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, "data");
-const DATA_FILE = process.env.DATA_FILE ? path.resolve(process.env.DATA_FILE) : path.join(DATA_DIR, "class-record.json");
+const RENDER_DATA_DIR = "/var/data";
+const DEFAULT_DATA_DIR = process.env.RENDER && fs.existsSync(RENDER_DATA_DIR)
+  ? RENDER_DATA_DIR
+  : path.join(__dirname, "data");
+const DATA_FILE = process.env.DATA_FILE
+  ? path.resolve(process.env.DATA_FILE)
+  : path.join(process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : DEFAULT_DATA_DIR, "class-record.json");
+const DATA_DIR = path.dirname(DATA_FILE);
 const ALLOW_DATA_RESET = process.env.ALLOW_DATA_RESET === "true";
 const PASSING_GRADE = 75;
 const PASSWORD_RULE_MESSAGE = "Password must be exactly 10 characters and include at least one lowercase letter, one uppercase letter, and one number.";
@@ -958,4 +964,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   ensureDataFile();
   console.log(`Class record app running at http://localhost:${PORT}`);
+  console.log(`Class record data file: ${DATA_FILE}`);
 });

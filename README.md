@@ -49,6 +49,15 @@ Use these deploy settings:
 
 For hosts with ephemeral filesystems, configure persistent storage and set `DATA_DIR` or `DATA_FILE` to that mounted path. Without persistent storage, class records may be lost when the service restarts or redeploys.
 
+### Render Persistence
+
+This repository includes a `render.yaml` blueprint that mounts a persistent disk at `/var/data` and sets `DATA_DIR=/var/data`. If you created the Render service manually instead of from the blueprint, add a persistent disk in Render with:
+
+- Mount path: `/var/data`
+- Environment variable: `DATA_DIR=/var/data`
+
+After redeploying, check the Render logs for `Class record data file: /var/data/class-record.json`. That confirms teachers, students, grades, and attendance are being saved to the persistent disk.
+
 ## GitHub Checklist
 
 - Do not commit `data/class-record.json`; it contains runtime users and passwords.
